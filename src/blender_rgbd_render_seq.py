@@ -6,50 +6,40 @@
 # Usage (headless):
 #   blender --background --python blender_rgbd_render_seq.py -- --config /abs/path/scene_example.toml
 #
-# Notes:
-# - This script expects a config loader: src/config_parser.py: load_scene_cfg(path) -> SceneCfg
-# - Types are defined in: src/config_types.py (SE3, SceneCfg, ...)
-# - Comments are in English only.
 
+# --- Standard library ---
+import argparse
 import csv
 import math
 import os
 import sys
+from pathlib import Path
 
+# --- Third-party (Blender) ---
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
-# -----------------------------------------------------------------------------
-# Import project modules (config loader & types)
-# -----------------------------------------------------------------------------
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)
-
-from src.config_parser import load_scene_cfg  # must return SceneCfg as defined below
+# --- Local project modules (absolute imports; no sys.path hack) ---
+from src.config_parser import load_scene_cfg  # must return SceneCfg
 from src.config_types import SE3, CameraIntrinsics, SceneCfg
 from src.summary import RenderSummary
+
 
 # -----------------------------------------------------------------------------
 # CLI args
 # -----------------------------------------------------------------------------
-
-
-def parse_args():
-    """Read --config argument (falls back to ./config/scene_example.toml)."""
-    cfg_path = os.path.abspath(os.path.join(PROJECT_ROOT, 'config/scene_example.toml'))
-    if '--' in sys.argv:
-        idx = sys.argv.index('--') + 1
-        argv = sys.argv[idx:]
-        i = 0
-        while i < len(argv):
-            if argv[i] == '--config' and i + 1 < len(argv):
-                cfg_path = os.path.abspath(argv[i + 1])
-                i += 2
-            else:
-                i += 1
-    return cfg_path
+def parse_args(project_root: Path) -> Path:
+    """Parse --config after Blender's '--' separator; return absolute Path."""
+    # Blender passes script args after '--'. Extract them safely.
+    argv = sys.argv[sys.argv.index('--') + 1 :] if '--' in sys.argv else []
+    parser = argparse.ArgumentParser(description='RGB-D sequence renderer')
+    parser.add_argument(
+        '--config',
+        default=str(project_root / 'config' / 'scene_example.toml'),
+        help='Path to scene config TOML file',
+    )
+    args = parser.parse_args(argv)
+    return Path(args.config).resolve()
 
 
 # -----------------------------------------------------------------------------
@@ -611,14 +601,15 @@ def render_depth(depth_exr_path: str, depth_viz_png_path: str, cam_obj, zmax_m: 
 # -----------------------------------------------------------------------------
 
 
-def ensure_dirs(base_out: str, scene_id: str):
-    """Create output subfolders and return the scene root path."""
-    scene_root = os.path.join(base_out, scene_id)
-    os.makedirs(os.path.join(scene_root, 'rgb'), exist_ok=True)
-    os.makedirs(os.path.join(scene_root, 'depth_exr'), exist_ok=True)
-    os.makedirs(os.path.join(scene_root, 'depth_viz'), exist_ok=True)
-    os.makedirs(os.path.join(scene_root, 'poses'), exist_ok=True)
-    os.makedirs(os.path.join(scene_root, 'mask'), exist_ok=True)
+def ensure_dirs(base_out: str | Path, scene_id: str) -> Path:
+    """Create output subfolders and return the scene root path as Path."""
+    base = Path(base_out).expanduser().resolve()
+    scene_root = base / scene_id
+
+    # Create required subdirectories
+    for name in ('rgb', 'depth_exr', 'depth_viz', 'poses', 'mask'):
+        (scene_root / name).mkdir(parents=True, exist_ok=True)
+
     return scene_root
 
 
@@ -649,12 +640,17 @@ def look_at_quaternion(eye: Vector, target: Vector) -> Quaternion:
 
 
 def main():
-    cfg_path = parse_args()
-    cfg: SceneCfg = load_scene_cfg(cfg_path)
+    """Entry point called by Blender."""
+    # Resolve project root relative to this file (no sys.path mutation)
+    script_dir = Path(__file__).resolve().parent
+    project_root = (script_dir / '..').resolve()
+
+    cfg_path = parse_args(project_root)
+    cfg: SceneCfg = load_scene_cfg(str(cfg_path))
 
     # Prepare output directories and manifest
     scene_root = ensure_dirs(cfg.render.out_dir, cfg.render.scene_id)
-    manifest_path = os.path.join(scene_root, 'manifest.csv')
+    manifest_path = scene_root / 'manifest.csv'
     man_rows = []
 
     # --- Summary container (struct처럼 사용)
