@@ -15,7 +15,6 @@ import csv
 import math
 import os
 import sys
-from typing import Tuple
 
 import bpy
 from mathutils import Matrix, Quaternion, Vector
@@ -30,6 +29,7 @@ if PROJECT_ROOT not in sys.path:
 
 from src.config_parser import load_scene_cfg  # must return SceneCfg as defined below
 from src.config_types import SE3, CameraIntrinsics, SceneCfg
+from src.summary import RenderSummary
 
 # -----------------------------------------------------------------------------
 # CLI args
@@ -657,6 +657,12 @@ def main():
     manifest_path = os.path.join(scene_root, 'manifest.csv')
     man_rows = []
 
+    # --- Summary container (struct처럼 사용)
+    summary = RenderSummary(
+        scene_id=cfg.render.scene_id,
+        scene_root=scene_root,
+    )
+
     # Build scene
     clear_scene()
     create_key_light(location=(2.5, -2.5, 2.5), power=400.0)
@@ -684,8 +690,13 @@ def main():
         device='GPU',
     )
 
+    summary.engine_name = bpy.context.scene.render.engine
+    summary.device_name = getattr(bpy.context.scene.cycles, 'device', 'CPU')
+
     # Iterate camera extrinsics (position + target), orientation computed automatically
     for k, cam_ext in enumerate(cfg.seq.camera_extrinsics):
+        summary.start_frame_timer()
+
         eye = Vector(cam_ext.p_WC)
         target = Vector(cam_ext.p_W_target)
 
@@ -751,6 +762,8 @@ def main():
                 'p_W_target': f'{cam_ext.p_W_target}',
             }
         )
+        summary.add_frame_num(1)
+        summary.stop_frame_timer()
 
     # Write manifest CSV
     with open(manifest_path, 'w', newline='') as f:
@@ -758,7 +771,8 @@ def main():
         writer.writeheader()
         writer.writerows(man_rows)
 
-    print('[INFO] Done. Outputs in:', scene_root)
+    print('[INFO] Done. Summary:')
+    summary.print()
 
 
 if __name__ == '__main__':
