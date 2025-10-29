@@ -1,5 +1,5 @@
 .*
 !.gitignore
 
-output/*
+outputs/*
 __pycache__/

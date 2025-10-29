@@ -1,0 +1,47 @@
+# config/scene_example.toml
+# Definition only. The real parser will be implemented later.
+
+
+[render]
+out_dir = "./outputs"
+scene_id = "cube_demo"
+width = 640
+height = 480
+zmax_m = 10.0
+
+
+[rig.color_intr]
+focal_length_mm = 35.0
+clip_start = 0.01
+clip_end = 100.0
+
+
+# depth -> color (T_DC): maps depth camera frame to color camera frame
+[rig.T_DC]
+t = [-0.10, 0.0, 0.0]
+q_wxyz = [1.0, 0.0, 0.0, 0.0]
+
+
+[obj]
+kind = "cube" # future: "mesh", "cylinder", etc.
+size = 1.0
+
+
+[obj.T_WO]
+t = [0.0, 0.0, 0.5]
+q_wxyz = [1.0, 0.0, 0.0, 0.0]
+
+
+[seq]
+# Per-frame camera position and target_in_world only.
+[[seq.camera_extrinsics]]
+t = [0.0, -3.0, 1.0]
+target_in_world = [0.0, 0.0, 0.5]
+
+[[seq.camera_extrinsics]]
+t = [1.5, -2.5, 1.2]
+target_in_world = [0.0, 0.0, 0.5]
+
+[[seq.camera_extrinsics]]
+t = [-1.5, -2.5, 1.7]
+target_in_world = [0.0, 0.0, 0.5]
