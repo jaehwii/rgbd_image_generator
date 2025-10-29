@@ -14,15 +14,19 @@ import math
 import os
 import sys
 from pathlib import Path
+from typing import Tuple
 
 # --- Third-party (Blender) ---
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
 # --- Local project modules (absolute imports; no sys.path hack) ---
+from src.blender_object_utils import create_cube
 from src.config_parser import load_scene_cfg  # must return SceneCfg
 from src.config_types import SE3, CameraIntrinsics, SceneCfg
 from src.summary import RenderSummary
+
+Vec3 = Tuple[float, float, float]
 
 
 # -----------------------------------------------------------------------------
@@ -103,44 +107,6 @@ def create_depth_camera_from_color_camera(color_cam, T_DC: Matrix):
     depth_obj.rotation_mode = 'QUATERNION'
     bpy.context.view_layer.update()
     return depth_obj
-
-
-def create_cube(
-    name: str = 'Cube',
-    size: float = 1.0,  # edge length (scene units, e.g., meters)
-    T_WO: SE3 = SE3(
-        p=(0.0, 0.0, 0.5),
-        q_wxyz=(1.0, 0.0, 0.0, 0.0),
-    ),
-    base_color=(0.2, 0.5, 0.9, 1.0),
-    roughness: float = 0.4,
-    object_index: int = 1,
-):
-    """Create cube, assign material, and set world transform (SE(3))."""
-    # Spawn at origin with neutral pose, then apply world matrix once (avoid double transforms)
-    bpy.ops.mesh.primitive_cube_add(
-        size=size, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0)
-    )
-    cube = bpy.context.active_object
-    cube.name = name
-    cube.pass_index = object_index
-
-    # Material
-    mat = bpy.data.materials.new(name=f'{name}Mat')
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes.get('Principled BSDF')
-    bsdf.inputs['Base Color'].default_value = base_color
-    bsdf.inputs['Roughness'].default_value = roughness
-    if len(cube.data.materials) == 0:
-        cube.data.materials.append(mat)
-    else:
-        cube.data.materials[0] = mat
-
-    # World transform
-    T = make_se3_matrix(T_WO.p, T_WO.q_wxyz)
-    cube.matrix_world = T
-
-    return cube
 
 
 def create_room(size=(6.0, 6.0, 3.0)):
@@ -673,6 +639,10 @@ def main():
         name='ColorCamera',
         intrinsics=cfg.rig.color_intrinsics,
     )
+    cam_depth = create_camera_from_intrinsics(
+        name='ColorCamera',
+        intrinsics=cfg.rig.depth_intrinsics,
+    )
 
     # Depth rig relation (depth -> color)
     T_DC = make_se3_matrix(cfg.rig.T_DC.p, cfg.rig.T_DC.q_wxyz)
@@ -705,14 +675,9 @@ def main():
         bpy.context.scene.camera = cam_color
         bpy.context.view_layer.update()
 
-        # Create/update depth camera pose via T_WD = T_WC @ inv(T_DC)
-        if k == 0:
-            cam_depth = create_depth_camera_from_color_camera(cam_color, T_DC)
-        else:
-            T_WC_eval = world_matrix_evaluated(cam_color)
-            T_WD = T_WC_eval @ T_DC.inverted()
-            set_obj_pose(cam_depth, T_WD)
-            bpy.context.view_layer.update()
+        T_WD = T_WC @ T_DC.inverted()
+        set_obj_pose(cam_depth, T_WD)
+        bpy.context.view_layer.update()
 
         # Filenames
         stem = f'frame_{k:04d}'

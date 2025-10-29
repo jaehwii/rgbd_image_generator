@@ -1,7 +1,3 @@
-# config/scene_example.toml
-# Definition only. The real parser will be implemented later.
-
-
 [render]
 out_dir = "./outputs"
 scene_id = "cube_demo"
@@ -15,33 +11,37 @@ focal_length_mm = 35.0
 clip_start = 0.01
 clip_end = 100.0
 
+[rig.depth_intr]
+focal_length_mm = 35.0
+clip_start = 0.01
+clip_end = 100.0
 
-# depth -> color (T_DC): maps depth camera frame to color camera frame
 [rig.T_DC]
-t = [-0.10, 0.0, 0.0]
+p = [-0.1, 0.0, 0.0]
 q_wxyz = [1.0, 0.0, 0.0, 0.0]
 
 
 [obj]
-kind = "cube" # future: "mesh", "cylinder", etc.
-size = 1.0
-
-
+type = "cube"
+size = [1.0, 1.0, 1.0]
+color_rgba = [0.8, 0.2, 0.2, 1.0]
 [obj.T_WO]
-t = [0.0, 0.0, 0.5]
+p = [0.0, 0.0, 0.5]          # world position of object origin
 q_wxyz = [1.0, 0.0, 0.0, 0.0]
 
 
-[seq]
-# Per-frame camera position and target_in_world only.
 [[seq.camera_extrinsics]]
-t = [0.0, -3.0, 1.0]
-target_in_world = [0.0, 0.0, 0.5]
+p_WC = [1.5, -2.5, 1.4]
+p_W_target = [0.0, 0.0, 0.5]
 
 [[seq.camera_extrinsics]]
-t = [1.5, -2.5, 1.2]
-target_in_world = [0.0, 0.0, 0.5]
+p_WC = [1.5, 2.5, 1.4]
+p_W_target = [0.0, 0.0, 0.5]
 
 [[seq.camera_extrinsics]]
-t = [-1.5, -2.5, 1.7]
-target_in_world = [0.0, 0.0, 0.5]
+p_WC = [-1.5, 2.5, 1.4]
+p_W_target = [0.0, 0.0, 0.5]
+
+[[seq.camera_extrinsics]]
+p_WC = [-1.5, -2.5, 1.4]
+p_W_target = [0.0, 0.0, 0.5]
