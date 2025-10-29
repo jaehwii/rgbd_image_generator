@@ -124,6 +124,7 @@ def create_cube(
     ),
     base_color=(0.2, 0.5, 0.9, 1.0),
     roughness: float = 0.4,
+    object_index: int = 1,
 ):
     """Create cube, assign material, and set world transform (SE(3))."""
     # Spawn at origin with neutral pose, then apply world matrix once (avoid double transforms)
@@ -132,6 +133,7 @@ def create_cube(
     )
     cube = bpy.context.active_object
     cube.name = name
+    cube.pass_index = object_index
 
     # Material
     mat = bpy.data.materials.new(name=f'{name}Mat')
@@ -147,6 +149,7 @@ def create_cube(
     # World transform
     T = make_se3_matrix(T_WO.p, T_WO.q_wxyz)
     cube.matrix_world = T
+
     return cube
 
 
@@ -493,6 +496,67 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
     return n_exr, n_png
 
 
+def setup_mask_compositor(mask_png_path: str, object_index: int = 1):
+    """Build compositor graph to output an 8-bit single-channel ID mask PNG."""
+    scene = bpy.context.scene
+    scene.use_nodes = True
+    nt = scene.node_tree
+    nt.links.clear()
+    nt.nodes.clear()
+
+    n_rl = nt.nodes.new('CompositorNodeRLayers')
+    n_rl.location = (-400, 0)
+
+    # Enable Object Index pass
+    view_layer = scene.view_layers[0]
+    view_layer.use_pass_object_index = True
+
+    n_id = nt.nodes.new('CompositorNodeIDMask')
+    n_id.index = object_index
+    n_id.location = (-150, 0)
+
+    n_out = nt.nodes.new('CompositorNodeOutputFile')
+    n_out.label = 'ObjMaskPNG'
+    n_out.format.file_format = 'PNG'
+    n_out.format.color_mode = 'BW'  # single-channel
+    n_out.format.color_depth = '8'  # 0 or 255
+    n_out.base_path = os.path.dirname(mask_png_path)
+    base_png = os.path.splitext(os.path.basename(mask_png_path))[0]
+    n_out.file_slots[0].path = base_png + '_'  # will produce <name>_0001.png
+    n_out.location = (150, 0)
+
+    # Links: RLayers "IndexOB" -> IDMask -> FileOutput
+    nt.links.new(n_rl.outputs['IndexOB'], n_id.inputs['ID value'])
+    nt.links.new(n_id.outputs['Alpha'], n_out.inputs[0])
+
+    return n_out
+
+
+def render_obj_mask(mask_png_path: str, cam_obj, object_index: int = 1):
+    """Render an object mask (from depth camera view) to a single-channel PNG."""
+    scene = bpy.context.scene
+    prev_camera = scene.camera
+    prev_use_nodes = scene.use_nodes
+    prev_filepath = scene.render.filepath
+    tmp_path = os.path.join(os.path.dirname(mask_png_path), '__tmp_mask_main.png')
+
+    try:
+        scene.camera = cam_obj
+        scene.render.filepath = tmp_path
+        setup_mask_compositor(mask_png_path, object_index=object_index)
+        bpy.ops.render.render(write_still=True)
+        finalize_file_output(mask_png_path)
+    finally:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception as e:
+            print(f'[WARN] failed to remove tmp main render: {e}')
+        scene.camera = prev_camera
+        scene.use_nodes = prev_use_nodes
+        scene.render.filepath = prev_filepath
+
+
 def finalize_file_output(target_path: str) -> bool:
     """Rename compositor's <name>_0001.ext to target_path (overwrites if exists)."""
     import shutil
@@ -554,6 +618,7 @@ def ensure_dirs(base_out: str, scene_id: str):
     os.makedirs(os.path.join(scene_root, 'depth_exr'), exist_ok=True)
     os.makedirs(os.path.join(scene_root, 'depth_viz'), exist_ok=True)
     os.makedirs(os.path.join(scene_root, 'poses'), exist_ok=True)
+    os.makedirs(os.path.join(scene_root, 'mask'), exist_ok=True)
     return scene_root
 
 
@@ -599,7 +664,7 @@ def main():
     create_room(size=(6.0, 6.0, 3.0))
 
     # Object
-    cube = create_cube(size=cfg.obj.size, T_WO=cfg.obj.T_WO)
+    cube = create_cube(size=cfg.obj.size, T_WO=cfg.obj.T_WO, object_index=1)
 
     # Cameras
     cam_color = create_camera_from_intrinsics(
@@ -647,6 +712,7 @@ def main():
         rgb_path = os.path.join(scene_root, 'rgb', f'{stem}.png')
         d_exr_path = os.path.join(scene_root, 'depth_exr', f'{stem}.exr')
         d_viz_path = os.path.join(scene_root, 'depth_viz', f'{stem}.png')
+        mask_path = os.path.join(scene_root, 'mask', f'{stem}.png')
 
         # Save poses
         T_WC_eval = world_matrix_evaluated(cam_color)
@@ -667,6 +733,8 @@ def main():
         render_rgb(rgb_path, cam_color)
         print(f'[INFO] Rendering Depth (EXR/PNG): {d_exr_path}, {d_viz_path}')
         render_depth(d_exr_path, d_viz_path, cam_depth, cfg.render.zmax_m)
+        print(f'[INFO] Rendering Mask: {mask_path}')
+        render_obj_mask(mask_path, cam_depth, object_index=1)
 
         # Manifest row
         man_rows.append(
@@ -675,6 +743,7 @@ def main():
                 'rgb': os.path.relpath(rgb_path, scene_root),
                 'depth_exr': os.path.relpath(d_exr_path, scene_root),
                 'depth_viz': os.path.relpath(d_viz_path, scene_root),
+                'mask': os.path.relpath(mask_path, scene_root),
                 'T_WC_txt': f'poses/T_WC_{stem}.txt',
                 'T_WD_txt': f'poses/T_WD_{stem}.txt',
                 'T_WO_txt': f'poses/T_WO_{stem}.txt',
