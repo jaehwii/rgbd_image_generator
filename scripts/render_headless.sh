@@ -21,5 +21,7 @@ fi
 
 # Run Blender with your entry script; pass args after '--'
 "${BLENDER_BIN}" --background \
+  --python-use-system-env \
+  --python-expr "import sys; sys.path.insert(0, r'${PROJECT_ROOT}')" \
   --python "${PROJECT_ROOT}/src/blender_rgbd_render_seq.py" -- \
   --config "${CFG_PATH}"
