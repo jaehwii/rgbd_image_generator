@@ -18,14 +18,14 @@ from typing import Tuple
 
 # --- Third-party (Blender) ---
 import bpy
-from mathutils import Matrix, Quaternion, Vector
+from mathutils import Matrix, Vector
 
 # --- Local project modules (absolute imports; no sys.path hack) ---
-from src.blender_object_utils import create_cube
-from src.config_parser import load_scene_cfg  # must return SceneCfg
-from src.config_types import CameraIntrinsics, SceneCfg
-from src.math_utils import make_se3_matrix
-from src.summary import RenderSummary
+from src.config.config_parser import load_scene_cfg  # must return SceneCfg
+from src.config.config_types import CameraIntrinsics, SceneCfg
+from src.renderer.blender_object_utils import create_cube
+from src.utils.math_utils import look_at_quaternion, make_se3_matrix
+from src.utils.summary import RenderSummary
 
 Vec3 = Tuple[float, float, float]
 QuatWXYZ = Tuple[float, float, float, float]
@@ -592,20 +592,6 @@ def write_matrix_txt(path: str, M: Matrix):
     with open(path, 'w') as f:
         for r in range(4):
             f.write(' '.join(f'{M[r][c]:.9f}' for c in range(4)) + '\n')
-
-
-# -----------------------------------------------------------------------------
-# Look-at orientation helper
-# -----------------------------------------------------------------------------
-
-
-def look_at_quaternion(eye: Vector, target: Vector) -> Quaternion:
-    """Return a quaternion so that local -Z looks at (target - eye), +Y is up-ish."""
-    d = target - eye
-    if d.length < 1e-9:
-        d = Vector((0, 0, -1))
-    # Blender camera convention: forward = local -Z, up = local +Y
-    return d.to_track_quat('-Z', 'Y')  # (w, x, y, z)
 
 
 # -----------------------------------------------------------------------------

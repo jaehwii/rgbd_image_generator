@@ -36,3 +36,12 @@ def make_scaled_se3_matrix(
     S[2][2] = sz
 
     return T @ S
+
+
+def look_at_quaternion(eye: Vector, target: Vector) -> Quaternion:
+    """Return a quaternion so that local -Z looks at (target - eye), +Y is up-ish."""
+    d = target - eye
+    if d.length < 1e-9:
+        d = Vector((0, 0, -1))
+    # Blender camera convention: forward = local -Z, up = local +Y
+    return d.to_track_quat('-Z', 'Y')  # (w, x, y, z)

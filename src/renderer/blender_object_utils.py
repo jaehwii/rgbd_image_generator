@@ -2,8 +2,8 @@ from typing import Tuple
 
 import bpy
 
-from .config_types import SE3
-from .math_utils import make_scaled_se3_matrix
+from src.config.config_types import SE3
+from src.utils.math_utils import make_scaled_se3_matrix
 
 Vec3 = Tuple[float, float, float]
 QuatWXYZ = Tuple[float, float, float, float]
