@@ -1,12 +1,13 @@
 from typing import Tuple
 
+# --- Third-party (Blender) ---
 import bpy
 
+# --- Local project modules ---
 from src.config.config_types import SE3
 from src.utils.math_utils import make_scaled_se3_matrix
 
 Vec3 = Tuple[float, float, float]
-QuatWXYZ = Tuple[float, float, float, float]
 
 
 def create_cube(
@@ -40,12 +41,8 @@ def create_cube(
     else:
         cube.data.materials[0] = mat
 
-    # 3) apply world transform
+    # 3) apply world transform (including size)
     T = make_scaled_se3_matrix(T_WO.p, T_WO.q_wxyz, size)
     cube.matrix_world = T
-
-    # # 4) set object-space dimensions (non-uniform)
-    # sx, sy, sz = map(float, size)
-    # cube.dimensions = (sx, sy, sz)
 
     return cube

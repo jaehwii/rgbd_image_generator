@@ -2,6 +2,7 @@
 
 from typing import Tuple
 
+# --- Third-party (Blender) ---
 from mathutils import Matrix, Quaternion, Vector
 
 Vec3 = Tuple[float, float, float]
