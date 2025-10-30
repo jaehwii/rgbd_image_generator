@@ -14,7 +14,8 @@ def ensure_dirs(base_out: str | Path, scene_id: str) -> Path:
         'rgb',
         'depth_exr_gt',
         'depth_exr_noisy',
-        'depth_viz',
+        'depth_viz_gt',
+        'depth_viz_noisy',
         'poses',
         'mask',
     ):

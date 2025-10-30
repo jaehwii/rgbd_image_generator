@@ -51,18 +51,18 @@ def main():
         noises.append(DropoutDepthNoise(ncfg.dropout.p, ncfg.dropout.fill))
 
     for r in rows:
-        exr_gt_rel = r.get('depth_exr_gt', r.get('depth_exr'))
-        if exr_gt_rel is None:
-            raise KeyError('manifest must contain depth_exr_gt or depth_exr')
+        exr_gt_rel = r.get('depth_exr_gt')
+        exr_noisy_rel = r.get('depth_exr_noisy')
+        viz_noisy_rel = r.get('depth_viz_noisy')
+        viz_gt_rel = r.get('depth_viz_gt')
+        if None in (exr_gt_rel, exr_noisy_rel, viz_noisy_rel, viz_gt_rel):
+            raise KeyError(
+                'manifest must contain depth_exr_gt, depth_exr_noisy, depth_viz_noisy, and depth_viz_gt'
+            )
         exr_gt_abs = (scene_root / exr_gt_rel).resolve()
-
-        p = Path(exr_gt_rel)
-        exr_noisy_rel = r.get('depth_exr_noisy', str(Path('depth_exr_noisy') / p.name))
         exr_noisy_abs = (scene_root / exr_noisy_rel).resolve()
-
-        viz_rel = r.get('depth_viz', str(Path('depth_viz') / (p.stem + '.png')))
-        viz_abs = (scene_root / viz_rel).resolve()
-
+        viz_noisy_abs = (scene_root / viz_noisy_rel).resolve()
+        viz_gt_abs = (scene_root / viz_gt_rel).resolve()
         zmax = float(r.get('zmax', cfg.render.zmax_m or 0.0))
 
         # read GT, apply noise, clamp
@@ -72,9 +72,13 @@ def main():
         # write noisy exr
         write_exr_depth(str(exr_noisy_abs), d_noisy)
         # viz from NOISY
-        visualize_exr_to_png(d_noisy, str(viz_abs), zmax)
+        visualize_exr_to_png(d_noisy, str(viz_noisy_abs), zmax)
+        # viz from GROUNDTRUTH
+        visualize_exr_to_png(d_gt, str(viz_gt_abs), zmax)
 
-        print(f'[NOISE] {p.name}: noisy_exr -> {exr_noisy_rel}, viz -> {viz_rel}')
+        print(
+            f'[NOISE] {Path(exr_gt_rel).name}: noisy_exr -> {exr_noisy_rel}, viz_noisy -> {viz_noisy_rel}, viz_gt -> {viz_gt_rel}'
+        )
 
 
 if __name__ == '__main__':

@@ -163,7 +163,8 @@ def main():
         rgb_path = os.path.join(scene_root, 'rgb', f'{stem}.png')
         d_exr_gt_path = os.path.join(scene_root, 'depth_exr_gt', f'{stem}.exr')
         d_exr_noisy_path = os.path.join(scene_root, 'depth_exr_noisy', f'{stem}.exr')
-        d_viz_path = os.path.join(scene_root, 'depth_viz', f'{stem}.png')
+        d_viz_gt_path = os.path.join(scene_root, 'depth_viz_gt', f'{stem}.png')
+        d_viz_noisy_path = os.path.join(scene_root, 'depth_viz_noisy', f'{stem}.png')
         mask_path = os.path.join(scene_root, 'mask', f'{stem}.png')
 
         # Save poses
@@ -195,7 +196,8 @@ def main():
                 'rgb': os.path.relpath(rgb_path, scene_root),
                 'depth_exr_gt': os.path.relpath(d_exr_gt_path, scene_root),
                 'depth_exr_noisy': os.path.relpath(d_exr_noisy_path, scene_root),
-                'depth_viz': os.path.relpath(d_viz_path, scene_root),
+                'depth_viz_gt': os.path.relpath(d_viz_gt_path, scene_root),
+                'depth_viz_noisy': os.path.relpath(d_viz_noisy_path, scene_root),
                 'mask': os.path.relpath(mask_path, scene_root),
                 'T_WC_txt': f'poses/T_WC_{stem}.txt',
                 'T_WD_txt': f'poses/T_WD_{stem}.txt',

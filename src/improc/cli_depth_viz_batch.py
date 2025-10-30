@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import os
 from pathlib import Path
 
 from src.improc.depth_noise import read_exr_depth
@@ -33,19 +32,33 @@ def main():
         rows = list(csv.DictReader(f))
 
     for r in rows:
-        # prefer noisy if present
-        exr_rel = r.get('depth_exr_noisy', r.get('depth_exr'))
-        if exr_rel is None:
-            raise KeyError('manifest must contain depth_exr_noisy or depth_exr')
-        viz_rel = r['depth_viz']
         zmax = float(r['zmax'])
-        exr_abs = (scene_root / exr_rel).resolve()
-        viz_abs = (scene_root / viz_rel).resolve()
-        os.makedirs(viz_abs.parent, exist_ok=True)
-        print(f'[POST] EXR -> PNG16 | {exr_abs} -> {viz_abs} | zmax={zmax}')
-        # Read EXR to ndarray, then visualize to PNG16
-        depth_m = read_exr_depth(str(exr_abs))
-        visualize_exr_to_png(depth_m, str(viz_abs), zmax)
+
+        # Groundtruth
+        exr_gt_rel = r.get('depth_exr_gt')
+        viz_gt_rel = r.get('depth_viz_gt')
+        if exr_gt_rel is None or viz_gt_rel is None:
+            raise KeyError('manifest must contain both depth_exr_gt and depth_viz_gt')
+        exr_gt_abs = (scene_root / exr_gt_rel).resolve()
+        viz_gt_abs = (scene_root / viz_gt_rel).resolve()
+        print(f'[POST] GT EXR -> PNG16 | {exr_gt_abs} -> {viz_gt_abs} | zmax={zmax}')
+        depth_gt = read_exr_depth(str(exr_gt_abs))
+        visualize_exr_to_png(depth_gt, str(viz_gt_abs), zmax)
+
+        # Noisy
+        exr_noisy_rel = r.get('depth_exr_noisy')
+        viz_noisy_rel = r.get('depth_viz_noisy')
+        if exr_noisy_rel is None or viz_noisy_rel is None:
+            raise KeyError(
+                'manifest must contain both depth_exr_noisy and depth_viz_noisy'
+            )
+        exr_noisy_abs = (scene_root / exr_noisy_rel).resolve()
+        viz_noisy_abs = (scene_root / viz_noisy_rel).resolve()
+        print(
+            f'[POST] NOISY EXR -> PNG16 | {exr_noisy_abs} -> {viz_noisy_abs} | zmax={zmax}'
+        )
+        depth_noisy = read_exr_depth(str(exr_noisy_abs))
+        visualize_exr_to_png(depth_noisy, str(viz_noisy_abs), zmax)
 
 
 if __name__ == '__main__':
