@@ -23,10 +23,12 @@ from mathutils import Matrix, Quaternion, Vector
 # --- Local project modules (absolute imports; no sys.path hack) ---
 from src.blender_object_utils import create_cube
 from src.config_parser import load_scene_cfg  # must return SceneCfg
-from src.config_types import SE3, CameraIntrinsics, SceneCfg
+from src.config_types import CameraIntrinsics, SceneCfg
+from src.math_utils import make_se3_matrix
 from src.summary import RenderSummary
 
 Vec3 = Tuple[float, float, float]
+QuatWXYZ = Tuple[float, float, float, float]
 
 
 # -----------------------------------------------------------------------------
@@ -65,13 +67,6 @@ def world_matrix_evaluated(obj) -> Matrix:
 def set_obj_pose(obj, T_world: Matrix):
     """Assign a 4x4 world transform to an object."""
     obj.matrix_world = T_world
-
-
-def make_se3_matrix(pxyz, q_wxyz) -> Matrix:
-    """Build 4x4 SE(3) from translation p and quaternion (w,x,y,z)."""
-    R = Quaternion(q_wxyz).to_matrix().to_4x4()
-    T = Matrix.Translation(Vector(pxyz))
-    return T @ R
 
 
 def create_camera_from_intrinsics(name: str, intrinsics: CameraIntrinsics):
@@ -625,7 +620,7 @@ def main():
     project_root = (script_dir / '..').resolve()
 
     cfg_path = parse_args(project_root)
-    cfg: SceneCfg = load_scene_cfg(str(cfg_path))
+    cfg: SceneCfg = load_scene_cfg(str(cfg_path), use_toml=True)
 
     # Prepare output directories and manifest
     scene_root = ensure_dirs(cfg.render.out_dir, cfg.render.scene_id)
