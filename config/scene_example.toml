@@ -45,3 +45,23 @@ p_W_target = [0.0, 0.0, 0.5]
 [[seq.camera_extrinsics]]
 p_WC = [-1.5, -2.5, 1.4]
 p_W_target = [0.0, 0.0, 0.5]
+
+[noise]
+enabled = true  # if false, skip entire noise processing
+
+[noise.gaussian]
+enabled = true
+sigma_m = 0.003
+
+[noise.multiplicative]
+enabled = false
+sigma_rel = 0.01
+
+[noise.quantization]
+enabled = false
+step_m = 0.001
+
+[noise.dropout]
+enabled = false
+p = 0.02
+fill = 0.0

@@ -8,12 +8,17 @@ try:
 except Exception:  # pragma: no cover
     tomllib = None  # type: ignore
 
-from .config_types import (
+from src.config.config_types import (
     SE3,
     CameraExtrinsics,
     CameraIntrinsics,
     CameraRig,
+    DropoutNoiseConfig,
+    GaussianNoiseConfig,
+    MultiplicativeNoiseConfig,
+    NoiseConfig,
     ObjectCfg,
+    QuantizationNoiseConfig,
     RenderCfg,
     SceneCfg,
     SequenceCfg,
@@ -36,6 +41,10 @@ def _as_quat_wxyz(v: Iterable[float]) -> Tuple[float, float, float, float]:
     if len(x) != 4:
         raise ValueError(f'QuatWXYZ must have length 4, got {len(x)}: {v}')
     return x  # type: ignore[return-value]
+
+
+def _get(d, key, default):
+    return d.get(key, default)
 
 
 # -----------------------------
@@ -153,6 +162,35 @@ def _parse_render(d: Dict[str, Any]) -> RenderCfg:
     )
 
 
+def _parse_noise(d: Dict[str, Any]) -> NoiseConfig:
+    nraw = d or {}
+    graw = nraw.get('gaussian', {}) or {}
+    mraw = nraw.get('multiplicative', {}) or {}
+    qraw = nraw.get('quantization', {}) or {}
+    draw = nraw.get('dropout', {}) or {}
+
+    return NoiseConfig(
+        enabled=bool(_get(nraw, 'enabled', True)),
+        gaussian=GaussianNoiseConfig(
+            enabled=bool(_get(graw, 'enabled', False)),
+            sigma_m=float(_get(graw, 'sigma_m', 0.0)),
+        ),
+        multiplicative=MultiplicativeNoiseConfig(
+            enabled=bool(_get(mraw, 'enabled', False)),
+            sigma_rel=float(_get(mraw, 'sigma_rel', 0.0)),
+        ),
+        quantization=QuantizationNoiseConfig(
+            enabled=bool(_get(qraw, 'enabled', False)),
+            step_m=float(_get(qraw, 'step_m', 0.0)),
+        ),
+        dropout=DropoutNoiseConfig(
+            enabled=bool(_get(draw, 'enabled', False)),
+            p=float(_get(draw, 'p', 0.0)),
+            fill=float(_get(draw, 'fill', 0.0)),
+        ),
+    )
+
+
 def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = False) -> SceneCfg:
     """Return a complete :class:`SceneCfg`.
 
@@ -176,7 +214,9 @@ def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = False) -> S
     rig = _parse_rig(raw['rig'])
     obj = _parse_obj(raw['obj'])
     seq = _parse_seq(raw['seq'])
-    return SceneCfg(render=render, rig=rig, obj=obj, seq=seq)
+    noise = _parse_noise(raw.get('noise', {}) or {})
+
+    return SceneCfg(render=render, rig=rig, obj=obj, seq=seq, noise=noise)
 
 
 # Small utility for debugging

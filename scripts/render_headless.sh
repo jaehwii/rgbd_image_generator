@@ -2,13 +2,16 @@
 # Headless batch rendering (no UI). Use absolute paths for robustness.
 set -euo pipefail
 
-BLENDER_BIN=${BLENDER_BIN:-blender}
+# Binaries (exported so Blender's Python can find/propagate them for subprocesses)
+BLENDER_BIN="${BLENDER_BIN:-blender}"
+SYS_PY="${SYS_PY:-python3}"
 
 # Project root = parent of this script directory
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Let Python find `src` as a first-party package without sys.path hacks
 export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH:-}"
+export SYS_PY
 
 # Default config path if not provided as $1
 CFG_PATH="${1:-${PROJECT_ROOT}/config/scene_example.toml}"
@@ -22,6 +25,5 @@ fi
 # Run Blender with your entry script; pass args after '--'
 "${BLENDER_BIN}" --background \
   --python-use-system-env \
-  --python-expr "import sys; sys.path.insert(0, r'${PROJECT_ROOT}')" \
   --python "${PROJECT_ROOT}/src/blender_rgbd_render_seq.py" -- \
   --config "${CFG_PATH}"

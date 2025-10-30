@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 
 Vec3 = Tuple[float, float, float]
@@ -63,9 +63,48 @@ class SequenceCfg:
     camera_extrinsics: List[CameraExtrinsics]
 
 
+@dataclass
+class GaussianNoiseConfig:
+    enabled: bool = False
+    sigma_m: float = 0.0
+
+
+@dataclass
+class MultiplicativeNoiseConfig:
+    enabled: bool = False
+    sigma_rel: float = 0.0
+
+
+@dataclass
+class QuantizationNoiseConfig:
+    enabled: bool = False
+    step_m: float = 0.0
+
+
+@dataclass
+class DropoutNoiseConfig:
+    enabled: bool = False
+    p: float = 0.0
+    fill: float = 0.0
+
+
+@dataclass
+class NoiseConfig:
+    enabled: bool = True
+    gaussian: GaussianNoiseConfig = field(default_factory=GaussianNoiseConfig)
+    multiplicative: MultiplicativeNoiseConfig = field(
+        default_factory=MultiplicativeNoiseConfig
+    )
+    quantization: QuantizationNoiseConfig = field(
+        default_factory=QuantizationNoiseConfig
+    )
+    dropout: DropoutNoiseConfig = field(default_factory=DropoutNoiseConfig)
+
+
 @dataclass(frozen=True)
-class SceneCfg:
+class SceneCfg:  # TODO: rename to AppCfg? or Cfg?
     render: RenderCfg
     rig: CameraRig
     obj: ObjectCfg
     seq: SequenceCfg
+    noise: NoiseConfig = field(default_factory=NoiseConfig)

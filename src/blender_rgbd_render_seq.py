@@ -8,6 +8,8 @@
 #
 
 # --- Standard library ---
+from __future__ import annotations
+
 import argparse
 import csv
 import os
@@ -41,6 +43,23 @@ from src.config.config_types import SceneCfg
 from src.utils.io_utils import ensure_dirs, write_matrix_txt
 from src.utils.math_utils import look_at_quaternion, make_se3_matrix
 from src.utils.summary import RenderSummary
+
+
+def _parse_args_from_blender(argv: list[str]) -> argparse.Namespace:
+    # Only parse args after the first "--"
+    if '--' in argv:
+        argv = argv[argv.index('--') + 1 :]
+    else:
+        argv = []  # allow nice error if user forgot to pass args
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--config', required=True, help='Path to scene .toml')
+    return ap.parse_args(argv)
+
+
+_ARGS = _parse_args_from_blender(sys.argv)
+config_path = os.path.abspath(_ARGS.config)
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 # -----------------------------------------------------------------------------
@@ -79,7 +98,7 @@ def main():
     manifest_path = scene_root / 'manifest.csv'
     man_rows = []
 
-    # --- Summary container (struct처럼 사용)
+    # --- Summary container
     summary = RenderSummary(
         scene_id=cfg.render.scene_id,
         scene_root=scene_root,
@@ -142,7 +161,8 @@ def main():
         # Filenames
         stem = f'frame_{k:04d}'
         rgb_path = os.path.join(scene_root, 'rgb', f'{stem}.png')
-        d_exr_path = os.path.join(scene_root, 'depth_exr', f'{stem}.exr')
+        d_exr_gt_path = os.path.join(scene_root, 'depth_exr_gt', f'{stem}.exr')
+        d_exr_noisy_path = os.path.join(scene_root, 'depth_exr_noisy', f'{stem}.exr')
         d_viz_path = os.path.join(scene_root, 'depth_viz', f'{stem}.png')
         mask_path = os.path.join(scene_root, 'mask', f'{stem}.png')
 
@@ -163,8 +183,8 @@ def main():
         # Render
         print(f'[INFO] Rendering RGB: {rgb_path}')
         render_rgb(rgb_path, cam_color)
-        print(f'[INFO] Rendering Depth EXR only: {d_exr_path}')
-        render_depth_exr(d_exr_path, cam_depth)
+        print(f'[INFO] Rendering GT Depth EXR only: {d_exr_gt_path}')
+        render_depth_exr(d_exr_gt_path, cam_depth)
         print(f'[INFO] Rendering Mask: {mask_path}')
         render_obj_mask(mask_path, cam_depth, object_index=1)
 
@@ -173,7 +193,8 @@ def main():
             {
                 'frame': k,
                 'rgb': os.path.relpath(rgb_path, scene_root),
-                'depth_exr': os.path.relpath(d_exr_path, scene_root),
+                'depth_exr_gt': os.path.relpath(d_exr_gt_path, scene_root),
+                'depth_exr_noisy': os.path.relpath(d_exr_noisy_path, scene_root),
                 'depth_viz': os.path.relpath(d_viz_path, scene_root),
                 'mask': os.path.relpath(mask_path, scene_root),
                 'T_WC_txt': f'poses/T_WC_{stem}.txt',
@@ -193,10 +214,39 @@ def main():
         writer.writeheader()
         writer.writerows(man_rows)
 
-    # --- System Python batch postprocess: EXR -> PNG16 depth_viz ---
-    # Use environment var SYS_PY to override system python path if needed.
+    # --- System Python postprocess ---
+    # 1) Add noise & write noisy EXR + viz (noisy-based)
+    # 2) (Optional) Re-run viz batch which prefers depth_exr_noisy if present.
     sys_py = os.environ.get('SYS_PY', 'python3')
-    cmd = [
+
+    # Normalize environment and working directory so that 'src' is always importable
+    env = os.environ.copy()
+    env['PYTHONPATH'] = (
+        PROJECT_ROOT
+        if 'PYTHONPATH' not in env or not env['PYTHONPATH']
+        else f'{PROJECT_ROOT}:{env["PYTHONPATH"]}'
+    )
+    cwd = PROJECT_ROOT  # Execute from the project root
+
+    noise_cmd = [
+        sys_py,
+        '-m',
+        'src.improc.cli_depth_noise_batch',
+        '--config',
+        str(config_path),
+    ]
+    print(
+        f'[INFO] Depth noise (system Python):\n  {" ".join(shlex.quote(c) for c in noise_cmd)}'
+    )
+    res = subprocess.run(noise_cmd, env=env, cwd=cwd, capture_output=True, text=True)
+    if res.returncode != 0:
+        print('[ERR] noise stderr:\n' + (res.stderr or '(empty)'))
+        print('[ERR] noise stdout:\n' + (res.stdout or '(empty)'))
+        print('[WARN] noise postprocess failed; you can run it manually later.')
+    else:
+        print('[OK ] noise done.')
+
+    viz_cmd = [
         sys_py,
         '-m',
         'src.improc.cli_depth_viz_batch',
@@ -206,17 +256,15 @@ def main():
         str(scene_root),
     ]
     print(
-        f'[INFO] Postprocess depth_viz with system Python:\n  {" ".join(shlex.quote(c) for c in cmd)}'
+        f'[INFO] Depth viz (prefer noisy):\n  {" ".join(shlex.quote(c) for c in viz_cmd)}'
     )
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
-        print(
-            f'[WARN] depth_viz postprocess failed (system python). You can re-run manually:\n  {" ".join(shlex.quote(c) for c in cmd)}'
-        )
-
-    print('[INFO] Done. Summary:')
-    summary.print()
+    res = subprocess.run(viz_cmd, env=env, cwd=cwd, capture_output=True, text=True)
+    if res.returncode != 0:
+        print('[ERR] viz stderr:\n' + (res.stderr or '(empty)'))
+        print('[ERR] viz stdout:\n' + (res.stdout or '(empty)'))
+        print('[WARN] depth_viz postprocess failed; you can run it manually later.')
+    else:
+        print('[OK ] viz done.')
 
 
 if __name__ == '__main__':

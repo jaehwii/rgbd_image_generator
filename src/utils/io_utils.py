@@ -10,7 +10,14 @@ def ensure_dirs(base_out: str | Path, scene_id: str) -> Path:
     scene_root = base / scene_id
 
     # Create required subdirectories
-    for name in ('rgb', 'depth_exr', 'depth_viz', 'poses', 'mask'):
+    for name in (
+        'rgb',
+        'depth_exr_gt',
+        'depth_exr_noisy',
+        'depth_viz',
+        'poses',
+        'mask',
+    ):
         (scene_root / name).mkdir(parents=True, exist_ok=True)
 
     return scene_root
