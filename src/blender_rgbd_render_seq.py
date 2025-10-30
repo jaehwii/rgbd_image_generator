@@ -11,6 +11,8 @@
 import argparse
 import csv
 import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,7 +23,7 @@ from mathutils import Vector
 # --- Local project modules ---
 from src.blender.object_utils import create_cube
 from src.blender.render_ops import (
-    render_depth,
+    render_depth_exr,
     render_obj_mask,
     render_rgb,
     set_render_settings,
@@ -161,8 +163,8 @@ def main():
         # Render
         print(f'[INFO] Rendering RGB: {rgb_path}')
         render_rgb(rgb_path, cam_color)
-        print(f'[INFO] Rendering Depth (EXR/PNG): {d_exr_path}, {d_viz_path}')
-        render_depth(d_exr_path, d_viz_path, cam_depth, cfg.render.zmax_m)
+        print(f'[INFO] Rendering Depth EXR only: {d_exr_path}')
+        render_depth_exr(d_exr_path, cam_depth)
         print(f'[INFO] Rendering Mask: {mask_path}')
         render_obj_mask(mask_path, cam_depth, object_index=1)
 
@@ -179,6 +181,7 @@ def main():
                 'T_WO_txt': f'poses/T_WO_{stem}.txt',
                 'p_WC': f'{cam_ext.p_WC}',
                 'p_W_target': f'{cam_ext.p_W_target}',
+                'zmax': f'{cfg.render.zmax_m}',
             }
         )
         summary.add_frame_num(1)
@@ -189,6 +192,28 @@ def main():
         writer = csv.DictWriter(f, fieldnames=list(man_rows[0].keys()))
         writer.writeheader()
         writer.writerows(man_rows)
+
+    # --- System Python batch postprocess: EXR -> PNG16 depth_viz ---
+    # Use environment var SYS_PY to override system python path if needed.
+    sys_py = os.environ.get('SYS_PY', 'python3')
+    cmd = [
+        sys_py,
+        '-m',
+        'src.improc.cli_depth_viz_batch',
+        '--manifest',
+        str(manifest_path),
+        '--scene-root',
+        str(scene_root),
+    ]
+    print(
+        f'[INFO] Postprocess depth_viz with system Python:\n  {" ".join(shlex.quote(c) for c in cmd)}'
+    )
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError:
+        print(
+            f'[WARN] depth_viz postprocess failed (system python). You can re-run manually:\n  {" ".join(shlex.quote(c) for c in cmd)}'
+        )
 
     print('[INFO] Done. Summary:')
     summary.print()

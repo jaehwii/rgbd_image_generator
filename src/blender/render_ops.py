@@ -217,8 +217,8 @@ def set_render_settings(
         print('[INFO] Enabled devices : (none)')
 
 
-def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m: float):
-    """Configure compositor to write Z to EXR (raw) and PNG16 (viz)."""
+def _setup_depth_exr(depth_exr_path: str) -> None:
+    """Configure compositor to write Z to EXR."""
     scene = bpy.context.scene
     scene.use_nodes = True
 
@@ -243,7 +243,12 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
         n_rl = ntree.nodes.new('CompositorNodeRLayers')
         n_rl.location = (-300, 0)
 
-    # 4) Export EXR (raw meters)
+    # Remove old output nodes except RLayers
+    for n in list(ntree.nodes):
+        if n.bl_idname != 'CompositorNodeRLayers':
+            ntree.nodes.remove(n)
+
+    # Export EXR (raw meters)
     n_exr = ntree.nodes.new('CompositorNodeOutputFile')
     n_exr.label = 'DepthEXR'
     n_exr.format.file_format = 'OPEN_EXR'
@@ -252,29 +257,32 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
     base_exr = os.path.splitext(os.path.basename(depth_exr_path))[0]
     n_exr.file_slots[0].path = base_exr + '_'
 
-    # 5) Visualize as PNG16
-    n_map = ntree.nodes.new('CompositorNodeMapRange')
-    n_map.inputs[1].default_value = 0.0
-    n_map.inputs[2].default_value = float(zmax_m)
-    n_map.inputs[3].default_value = 0.0
-    n_map.inputs[4].default_value = 1.0
-    n_map.use_clamp = True
-
-    n_png = ntree.nodes.new('CompositorNodeOutputFile')
-    n_png.label = 'DepthVizPNG'
-    n_png.format.file_format = 'PNG'
-    n_png.format.color_mode = 'BW'
-    n_png.format.color_depth = '16'
-    n_png.base_path = os.path.dirname(depth_viz_png_path)
-    base_png = os.path.splitext(os.path.basename(depth_viz_png_path))[0]
-    n_png.file_slots[0].path = base_png + '_'
-
-    # 6) Link (Ensure existence of depth socket now)
+    # Link (ensure existence of depth socket now)
     ntree.links.new(n_rl.outputs['Depth'], n_exr.inputs[0])
-    ntree.links.new(n_rl.outputs['Depth'], n_map.inputs['Value'])
-    ntree.links.new(n_map.outputs['Value'], n_png.inputs[0])
 
-    return n_exr, n_png
+
+def render_depth_exr(depth_exr_path: str, cam_obj) -> None:
+    """Render depth to an EXR image."""
+    scene = bpy.context.scene
+    prev_camera = scene.camera
+    prev_use_nodes = scene.use_nodes
+    prev_filepath = scene.render.filepath
+    tmp_path = os.path.join(os.path.dirname(depth_exr_path), '__tmp_depth_main.png')
+    try:
+        scene.camera = cam_obj
+        scene.render.filepath = tmp_path
+        _setup_depth_exr(depth_exr_path)
+        bpy.ops.render.render(write_still=True)
+        finalize_file_output(depth_exr_path)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception as e:
+                print(f'[WARN] failed to remove tmp: {e}')
+        scene.camera = prev_camera
+        scene.use_nodes = prev_use_nodes
+        scene.render.filepath = prev_filepath
 
 
 def setup_mask_compositor(mask_png_path: str, object_index: int = 1):
@@ -360,28 +368,3 @@ def render_rgb(out_path: str, cam_obj):
     scene.camera = cam_obj
     scene.render.filepath = out_path
     bpy.ops.render.render(write_still=True)
-
-
-def render_depth(depth_exr_path: str, depth_viz_png_path: str, cam_obj, zmax_m: float):
-    """Render depth EXR + 16-bit PNG visualization via compositor."""
-    scene = bpy.context.scene
-    prev_camera = scene.camera
-    prev_use_nodes = scene.use_nodes
-    prev_filepath = scene.render.filepath
-    tmp_path = os.path.join(os.path.dirname(depth_exr_path), '__tmp_depth_main.png')
-    try:
-        scene.camera = cam_obj
-        scene.render.filepath = tmp_path
-        setup_depth_compositor(depth_exr_path, depth_viz_png_path, zmax_m)
-        bpy.ops.render.render(write_still=True)
-        finalize_file_output(depth_exr_path)
-        finalize_file_output(depth_viz_png_path)
-    finally:
-        try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except Exception as e:
-            print(f'[WARN] failed to remove tmp main render: {e}')
-        scene.camera = prev_camera
-        scene.use_nodes = prev_use_nodes
-        scene.render.filepath = prev_filepath
