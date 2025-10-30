@@ -409,14 +409,29 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
     """Configure compositor to write Z to EXR (raw) and PNG16 (viz)."""
     scene = bpy.context.scene
     scene.use_nodes = True
+
+    # 1) activate z pass first (blender 4.x)
+    view_layer = scene.view_layers[0]
+    view_layer.use_pass_z = True
+    bpy.context.view_layer.update()
+
+    # 2) initialize node tree
     ntree = scene.node_tree
     ntree.links.clear()
     ntree.nodes.clear()
 
+    # 3) Create RLayers node
     n_rl = ntree.nodes.new('CompositorNodeRLayers')
     n_rl.location = (-300, 0)
 
-    # EXR output (raw meters)
+    # If depth socket does not exist, recreate node to force
+    if 'Depth' not in [s.name for s in n_rl.outputs]:
+        ntree.nodes.remove(n_rl)
+        bpy.context.view_layer.update()
+        n_rl = ntree.nodes.new('CompositorNodeRLayers')
+        n_rl.location = (-300, 0)
+
+    # 4) Export EXR (raw meters)
     n_exr = ntree.nodes.new('CompositorNodeOutputFile')
     n_exr.label = 'DepthEXR'
     n_exr.format.file_format = 'OPEN_EXR'
@@ -425,7 +440,7 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
     base_exr = os.path.splitext(os.path.basename(depth_exr_path))[0]
     n_exr.file_slots[0].path = base_exr + '_'
 
-    # PNG16 visualization
+    # 5) Visualize as PNG16
     n_map = ntree.nodes.new('CompositorNodeMapRange')
     n_map.inputs[1].default_value = 0.0
     n_map.inputs[2].default_value = float(zmax_m)
@@ -442,12 +457,10 @@ def setup_depth_compositor(depth_exr_path: str, depth_viz_png_path: str, zmax_m:
     base_png = os.path.splitext(os.path.basename(depth_viz_png_path))[0]
     n_png.file_slots[0].path = base_png + '_'
 
+    # 6) Link (Ensure existence of depth socket now)
     ntree.links.new(n_rl.outputs['Depth'], n_exr.inputs[0])
     ntree.links.new(n_rl.outputs['Depth'], n_map.inputs['Value'])
     ntree.links.new(n_map.outputs['Value'], n_png.inputs[0])
-
-    view_layer = scene.view_layers[0]
-    view_layer.use_pass_z = True
 
     return n_exr, n_png
 
