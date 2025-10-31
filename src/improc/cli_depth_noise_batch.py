@@ -77,26 +77,22 @@ def main():
             write_exr_depth(str(exr_gt_abs), d_gt)
 
         # apply noise on clamped GT
-        d_noisy = apply_noise_chain(d_gt, noises, zmax_m=zmax, nonpositive_to_zero=True)
-
-        import numpy as np
-
-        # Before/after clamp stats (apply_noise_chain already clamps; adjust if you clamp separately)
-        diff = np.abs(d_noisy - d_gt)
-        print(
-            f'[DEBUG] diff(mean)={float(diff.mean()):.6e} diff(max)={float(diff.max()):.6e}'
+        d_noisy = apply_noise_chain(
+            d_gt,
+            noises,
+            zmax_m=zmax,
+            invalid_fill=cfg.noise.dropout.fill,
+            nonpositive_to_zero=True,
         )
-
-        # Symmetric clamp after noise as well
-        if zmax > 0.0:
-            d_noisy = clamp_depth_to_zmax(d_noisy, zmax)
 
         # write noisy exr
         write_exr_depth(str(exr_noisy_abs), d_noisy)
         # viz from NOISY
-        visualize_exr_to_png(d_noisy, str(viz_noisy_abs), zmax)
+        visualize_exr_to_png(
+            d_noisy, str(viz_noisy_abs), zmax, invalid_color=(0, 180, 0)
+        )
         # viz from GROUNDTRUTH
-        visualize_exr_to_png(d_gt, str(viz_gt_abs), zmax)
+        visualize_exr_to_png(d_gt, str(viz_gt_abs), zmax, invalid_color=(0, 180, 0))
 
         print(
             f'[NOISE] {Path(exr_gt_rel).name}: noisy_exr -> {exr_noisy_rel}, viz_noisy -> {viz_noisy_rel}, viz_gt -> {viz_gt_rel}'

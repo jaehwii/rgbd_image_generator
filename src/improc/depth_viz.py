@@ -18,7 +18,11 @@ def visualize_exr_to_png(
     import cv2
 
     d = depth_m.astype(np.float32)
-    is_valid = np.isfinite(d) & (d > 0)
+    is_finite_pos = np.isfinite(d) & (d > 0)
+    if zmax_m and zmax_m > 0:
+        is_valid = is_finite_pos & (d <= zmax_m)
+    else:
+        is_valid = is_finite_pos
 
     if not (zmax_m and zmax_m > 0):
         # choose z_max from valid pixels
