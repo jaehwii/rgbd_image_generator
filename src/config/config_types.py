@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Literal, Tuple, Union
 
 Vec3 = Tuple[float, float, float]
 QuatWXYZ = Tuple[float, float, float, float]
@@ -102,9 +102,35 @@ class NoiseConfig:
 
 
 @dataclass(frozen=True)
+class ObjectPrimitive:
+    """Parametric primitive (cube, cylinder, ...)."""
+
+    kind: Literal['primitive']
+    shape: Literal['cube', 'cylinder', 'sphere', 'cone', 'plane']
+    size: Vec3
+    color_rgba: Tuple[float, float, float, float]
+    T_WO: SE3  # world_T_object
+
+
+@dataclass(frozen=True)
+class ObjectCAD:
+    """CAD mesh loaded from file (.stl/.obj/.ply...)."""
+
+    kind: Literal['cad']
+    path: str
+    scale: Vec3
+    color_rgba: Tuple[float, float, float, float]
+    T_WO: SE3  # world_T_object
+
+
+# Discriminated union
+ObjectSpec = Union[ObjectPrimitive, ObjectCAD]
+
+
+@dataclass(frozen=True)
 class Config:
     render: RenderConfig
     rig: CameraRig
-    obj: ObjectConfig
+    obj: ObjectSpec
     seq: SequenceConfig
     noise: NoiseConfig = field(default_factory=NoiseConfig)

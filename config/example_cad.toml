@@ -1,6 +1,6 @@
 [render]
 out_dir = "./outputs"
-scene_id = "cube_demo"
+scene_id = "wine_bottle"
 width = 640
 height = 480
 zmax_m = 6.0
@@ -22,33 +22,26 @@ q_wxyz = [1.0, 0.0, 0.0, 0.0]
 
 
 [obj]
-kind = "primitive"
+kind = "cad"
 
-[obj.primitive]
-shape = "cylinder"                 # cube|cylinder|sphere|cone|plane
-size = [1.0, 1.0, 1.0]
-color_rgba = [0.2, 0.6, 0.9, 1.0]
+[obj.cad]
+path = "meshes/wine_bottle/wine_bottle.glb"
+scale = [0.05, 0.05, 0.05]
+color_rgba = [0.8, 0.8, 0.8, 1.0]
 
 [obj.T_WO]
-p = [0.0, 0.0, 0.5]
-q_wxyz = [1.0, 0.0, 0.0, 0.0]
+p = [0.0, 0.0, 0.0]
+q_wxyz = [0.717, -0.717, 0.0, 0.0]
 
 
 [[seq.camera_extrinsics]]
 p_WC = [1.5, -2.5, 1.4]
-p_W_target = [0.0, 0.0, 0.5]
+p_W_target = [0.0, 0.0, 0.35]
 
 [[seq.camera_extrinsics]]
 p_WC = [1.5, 2.5, 1.4]
-p_W_target = [0.0, 0.0, 0.5]
+p_W_target = [0.0, 0.0, 0.35]
 
-# [[seq.camera_extrinsics]]
-# p_WC = [-1.5, 2.5, 1.4]
-# p_W_target = [0.0, 0.0, 0.5]
-
-# [[seq.camera_extrinsics]]
-# p_WC = [-1.5, -2.5, 1.4]
-# p_W_target = [0.0, 0.0, 0.5]
 
 [noise]
 enabled = true  # if false, skip entire noise processing

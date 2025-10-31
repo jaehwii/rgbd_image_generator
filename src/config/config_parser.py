@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any, Dict, Iterable, Tuple
 
 # Try stdlib tomllib (Py>=3.11), otherwise fall back to 'tomli' backport.
@@ -22,7 +21,9 @@ from src.config.config_types import (
     GaussianNoiseConfig,
     MultiplicativeNoiseConfig,
     NoiseConfig,
-    ObjectConfig,
+    ObjectCAD,
+    ObjectPrimitive,
+    ObjectSpec,
     QuantizationNoiseConfig,
     RenderConfig,
     SequenceConfig,
@@ -72,8 +73,9 @@ DEFAULT_CONFIG = Config(
         ),
         T_DC=SE3(p=(-0.1, 0.0, 0.0), q_wxyz=(1.0, 0.0, 0.0, 0.0)),
     ),
-    obj=ObjectConfig(
-        type='cube',
+    obj=ObjectPrimitive(
+        kind='primitive',
+        shape='cube',
         size=(1.0, 1.0, 1.0),
         color_rgba=(0.8, 0.2, 0.2, 1.0),
         T_WO=SE3(p=(0.0, 0.0, 0.5), q_wxyz=(1.0, 0.0, 0.0, 0.0)),
@@ -120,30 +122,40 @@ def _parse_rig(d: Dict[str, Any]) -> CameraRig:
     return CameraRig(color_intrinsics=color, depth_intrinsics=depth, T_DC=T_DC)
 
 
-def _parse_obj(d: Dict[str, Any]) -> ObjectConfig:
-    # REQUIRE Vec3 for size
-    if 'size' not in d:
-        raise KeyError(
-            '[obj] size must be provided as a Vec3, e.g., size = [1.0, 1.0, 1.0]'
+def _parse_obj(d: Dict[str, Any]) -> ObjectSpec:
+    kind = str(d['kind']).strip().lower()
+    T = d['T_WO']
+    p = _as_vec3(T['p'])
+    q = _as_quat_wxyz(T['q_wxyz'])
+    T_WO = SE3(p=p, q_wxyz=q)
+
+    if kind == 'primitive':
+        prim = d['primitive']
+        shape = str(prim['shape']).strip().lower()
+        size = _as_vec3(prim['size'])
+        color = tuple(float(x) for x in prim['color_rgba'])
+        return ObjectPrimitive(
+            kind='primitive',  # type: ignore[arg-type]
+            shape=shape,  # type: ignore[arg-type]
+            size=size,
+            color_rgba=color,  # type: ignore[arg-type]
+            T_WO=T_WO,
         )
-    size_vec3 = _as_vec3(d['size'])
 
-    # Allow either flat keys or nested tables for transform
-    T = d.get('T_WO')
-    if isinstance(T, dict):
-        p = _as_vec3(T['p'])
-        q = _as_quat_wxyz(T['q_wxyz'])
-    else:
-        # Backward-compatible keys
-        p = _as_vec3(d['p_WO']) if 'p_WO' in d else (0.0, 0.0, 0.0)
-        q = _as_quat_wxyz(d['q_WO_wxyz']) if 'q_WO_wxyz' in d else (1.0, 0.0, 0.0, 0.0)
+    if kind == 'cad':
+        cad = d['cad']
+        path = str(cad['path'])
+        scale = _as_vec3(cad['scale'])
+        color = tuple(float(x) for x in cad['color_rgba'])
+        return ObjectCAD(
+            kind='cad',  # type: ignore[arg-type]
+            path=path,
+            scale=scale,
+            color_rgba=color,  # type: ignore[arg-type]
+            T_WO=T_WO,
+        )
 
-    return ObjectConfig(
-        type=str(d.get('type', 'cube')),
-        size=size_vec3,
-        color_rgba=tuple(float(x) for x in d.get('color_rgba', (0.8, 0.2, 0.2, 1.0))),  # type: ignore[return-value]
-        T_WO=SE3(p=p, q_wxyz=q),
-    )
+    raise ValueError(f'[obj.kind] unsupported: {kind!r}')
 
 
 def _parse_seq(d: Dict[str, Any]) -> SequenceConfig:

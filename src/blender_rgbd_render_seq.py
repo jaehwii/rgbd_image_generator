@@ -23,7 +23,7 @@ import bpy
 from mathutils import Vector
 
 # --- Local project modules ---
-from src.blender.object_utils import create_cube
+from src.blender.object_utils import create_object_from_spec
 from src.blender.render_ops import (
     render_depth_exr,
     render_obj_mask,
@@ -111,7 +111,7 @@ def main():
     create_room(size=(6.0, 6.0, 3.0))
 
     # Object
-    cube = create_cube(size=cfg.obj.size, T_WO=cfg.obj.T_WO, object_index=1)
+    obj = create_object_from_spec(cfg.obj, object_index=1)
 
     # Cameras
     cam_color = create_camera_from_intrinsics(
@@ -178,7 +178,7 @@ def main():
         )
         write_matrix_txt(
             os.path.join(scene_root, 'poses', f'T_WO_{stem}.txt'),
-            world_matrix_evaluated(cube),
+            world_matrix_evaluated(obj),
         )
 
         # Render
