@@ -17,15 +17,15 @@ from src.config.config_types import (
     CameraExtrinsics,
     CameraIntrinsics,
     CameraRig,
+    Config,
     DropoutNoiseConfig,
     GaussianNoiseConfig,
     MultiplicativeNoiseConfig,
     NoiseConfig,
-    ObjectCfg,
+    ObjectConfig,
     QuantizationNoiseConfig,
-    RenderCfg,
-    SceneCfg,
-    SequenceCfg,
+    RenderConfig,
+    SequenceConfig,
 )
 
 # -----------------------------
@@ -55,8 +55,8 @@ def _get(d, key, default):
 # Default (hardcoded) config
 # -----------------------------
 
-DEFAULT_CFG = SceneCfg(
-    render=RenderCfg(
+DEFAULT_CONFIG = Config(
+    render=RenderConfig(
         out_dir='./outputs',
         scene_id='cube_demo',
         width=640,
@@ -72,13 +72,13 @@ DEFAULT_CFG = SceneCfg(
         ),
         T_DC=SE3(p=(-0.1, 0.0, 0.0), q_wxyz=(1.0, 0.0, 0.0, 0.0)),
     ),
-    obj=ObjectCfg(
+    obj=ObjectConfig(
         type='cube',
         size=(1.0, 1.0, 1.0),
         color_rgba=(0.8, 0.2, 0.2, 1.0),
         T_WO=SE3(p=(0.0, 0.0, 0.5), q_wxyz=(1.0, 0.0, 0.0, 0.0)),
     ),
-    seq=SequenceCfg(
+    seq=SequenceConfig(
         camera_extrinsics=[
             CameraExtrinsics(p_WC=(1.5, -2.5, 1.4), p_W_target=(0.0, 0.0, 0.5)),
             CameraExtrinsics(p_WC=(1.5, 2.5, 1.4), p_W_target=(0.0, 0.0, 0.5)),
@@ -120,7 +120,7 @@ def _parse_rig(d: Dict[str, Any]) -> CameraRig:
     return CameraRig(color_intrinsics=color, depth_intrinsics=depth, T_DC=T_DC)
 
 
-def _parse_obj(d: Dict[str, Any]) -> ObjectCfg:
+def _parse_obj(d: Dict[str, Any]) -> ObjectConfig:
     # REQUIRE Vec3 for size
     if 'size' not in d:
         raise KeyError(
@@ -138,7 +138,7 @@ def _parse_obj(d: Dict[str, Any]) -> ObjectCfg:
         p = _as_vec3(d['p_WO']) if 'p_WO' in d else (0.0, 0.0, 0.0)
         q = _as_quat_wxyz(d['q_WO_wxyz']) if 'q_WO_wxyz' in d else (1.0, 0.0, 0.0, 0.0)
 
-    return ObjectCfg(
+    return ObjectConfig(
         type=str(d.get('type', 'cube')),
         size=size_vec3,
         color_rgba=tuple(float(x) for x in d.get('color_rgba', (0.8, 0.2, 0.2, 1.0))),  # type: ignore[return-value]
@@ -146,18 +146,18 @@ def _parse_obj(d: Dict[str, Any]) -> ObjectCfg:
     )
 
 
-def _parse_seq(d: Dict[str, Any]) -> SequenceCfg:
+def _parse_seq(d: Dict[str, Any]) -> SequenceConfig:
     items = []
     for it in d.get('camera_extrinsics', []):
         # support both {p_WC=[...], p_W_target=[...]} and {t=[...], target_in_world=[...]}
         p = _as_vec3(it.get('p_WC', it.get('t', (0.0, 0.0, 0.0))))
         tgt = _as_vec3(it.get('p_W_target', it.get('target_in_world', (0.0, 0.0, 0.0))))
         items.append(CameraExtrinsics(p_WC=p, p_W_target=tgt))
-    return SequenceCfg(camera_extrinsics=items)
+    return SequenceConfig(camera_extrinsics=items)
 
 
-def _parse_render(d: Dict[str, Any]) -> RenderCfg:
-    return RenderCfg(
+def _parse_render(d: Dict[str, Any]) -> RenderConfig:
+    return RenderConfig(
         out_dir=str(d['out_dir']),
         scene_id=str(d['scene_id']),
         width=int(d['width']),
@@ -195,7 +195,7 @@ def _parse_noise(d: Dict[str, Any]) -> NoiseConfig:
     )
 
 
-def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = True) -> SceneCfg:
+def load_config(toml_path: str | None = None, *, use_toml: bool = True) -> Config:
     """Return a complete :class:`SceneCfg`.
 
     - If ``use_toml`` is False (default), returns the hardcoded defaults (matches current behavior).
@@ -203,7 +203,7 @@ def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = True) -> Sc
     """
     if not use_toml:
         print('Using default hardcoded config')
-        return DEFAULT_CFG
+        return DEFAULT_CONFIG
 
     if toml_path is None:
         raise ValueError('toml_path is required when use_toml=True')
@@ -222,9 +222,4 @@ def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = True) -> Sc
     seq = _parse_seq(raw['seq'])
     noise = _parse_noise(raw.get('noise', {}) or {})
 
-    return SceneCfg(render=render, rig=rig, obj=obj, seq=seq, noise=noise)
-
-
-# Small utility for debugging
-def scene_cfg_asdict(cfg: SceneCfg) -> Dict[str, Any]:
-    return asdict(cfg)
+    return Config(render=render, rig=rig, obj=obj, seq=seq, noise=noise)

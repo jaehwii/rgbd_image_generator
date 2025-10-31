@@ -38,8 +38,8 @@ from src.blender.scene_utils import (
     set_obj_pose,
     world_matrix_evaluated,
 )
-from src.config.config_parser import load_scene_cfg  # must return SceneCfg
-from src.config.config_types import SceneCfg
+from src.config.config_parser import load_config  # must return SceneCfg
+from src.config.config_types import Config
 from src.utils.io_utils import ensure_dirs, write_matrix_txt
 from src.utils.math_utils import look_at_quaternion, make_se3_matrix
 from src.utils.summary import RenderSummary
@@ -91,7 +91,7 @@ def main():
     project_root = (script_dir / '..').resolve()
 
     cfg_path = parse_args(project_root)
-    cfg: SceneCfg = load_scene_cfg(str(cfg_path), use_toml=True)
+    cfg: Config = load_config(str(cfg_path), use_toml=True)
 
     # Prepare output directories and manifest
     scene_root = ensure_dirs(cfg.render.out_dir, cfg.render.scene_id)

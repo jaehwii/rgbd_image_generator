@@ -9,7 +9,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from src.config.config_parser import load_scene_cfg
+from src.config.config_parser import load_config
 from src.improc.depth_noise import clamp_depth_to_zmax, read_exr_depth
 from src.improc.depth_viz import visualize_exr_to_png
 
@@ -19,7 +19,7 @@ def main():
     ap.add_argument('--config', required=True, help='Path to scene .toml')
     args = ap.parse_args()
 
-    cfg = load_scene_cfg(args.config)
+    cfg = load_config(args.config)
     print(f'[VIZ] loaded config: {args.config}')
 
     zmax = float(getattr(cfg.render, 'zmax_m', 0.0) or 0.0)

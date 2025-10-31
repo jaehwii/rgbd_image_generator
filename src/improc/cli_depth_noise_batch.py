@@ -5,7 +5,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from src.config.config_parser import load_scene_cfg
+from src.config.config_parser import load_config
 from src.improc.depth_noise import (
     DropoutDepthNoise,
     GaussianDepthNoise,
@@ -24,7 +24,7 @@ def main():
     ap.add_argument('--config', required=True, help='Path to scene .toml')
     args = ap.parse_args()
 
-    cfg = load_scene_cfg(args.config)
+    cfg = load_config(args.config)
     print(f'[NOISE] loaded config: {args.config}')
     if not cfg.noise.enabled:
         print('[NOISE] noise.enabled = false → skip')

@@ -12,7 +12,7 @@ class SE3:
 
 
 @dataclass(frozen=True)
-class RenderCfg:
+class RenderConfig:
     """Top-level render parameters."""
 
     out_dir: str
@@ -41,7 +41,7 @@ class CameraRig:
 
 
 @dataclass(frozen=True)
-class ObjectCfg:
+class ObjectConfig:
     """A simple parametric object placed in the scene."""
 
     type: str  # e.g., "cube"
@@ -59,33 +59,33 @@ class CameraExtrinsics:
 
 
 @dataclass(frozen=True)
-class SequenceCfg:
+class SequenceConfig:
     camera_extrinsics: List[CameraExtrinsics]
 
 
 @dataclass
 class GaussianNoiseConfig:
     enabled: bool = False
-    sigma_m: float = 0.0
+    sigma_m: float = 0.0  # stddev in meters
 
 
 @dataclass
 class MultiplicativeNoiseConfig:
     enabled: bool = False
-    sigma_rel: float = 0.0
+    sigma_rel: float = 0.0  # relative stddev (e.g. 0.01 = 1%)
 
 
 @dataclass
 class QuantizationNoiseConfig:
     enabled: bool = False
-    step_m: float = 0.0
+    step_m: float = 0.0  # quantization step (e.g. bin width) in meters
 
 
 @dataclass
 class DropoutNoiseConfig:
     enabled: bool = False
-    p: float = 0.0
-    fill: float = 0.0
+    p: float = 0.0  # probability of pixel dropout
+    fill: float = 0.0  # substitute value for dropped pixels
 
 
 @dataclass
@@ -102,9 +102,9 @@ class NoiseConfig:
 
 
 @dataclass(frozen=True)
-class SceneCfg:  # TODO: rename to AppCfg? or Cfg?
-    render: RenderCfg
+class Config:
+    render: RenderConfig
     rig: CameraRig
-    obj: ObjectCfg
-    seq: SequenceCfg
+    obj: ObjectConfig
+    seq: SequenceConfig
     noise: NoiseConfig = field(default_factory=NoiseConfig)
