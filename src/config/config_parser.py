@@ -191,13 +191,14 @@ def _parse_noise(d: Dict[str, Any]) -> NoiseConfig:
     )
 
 
-def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = False) -> SceneCfg:
+def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = True) -> SceneCfg:
     """Return a complete :class:`SceneCfg`.
 
     - If ``use_toml`` is False (default), returns the hardcoded defaults (matches current behavior).
     - If ``use_toml`` is True, parses the TOML file at ``toml_path``.
     """
     if not use_toml:
+        print('Using default hardcoded config')
         return DEFAULT_CFG
 
     if toml_path is None:
