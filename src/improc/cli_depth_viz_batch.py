@@ -1,6 +1,6 @@
-"""Batch depth viz: read manifest.csv and make PNG16 from depth EXR using system Python.
+"""Batch depth viz driven by main config only.
 Usage:
-  python -m src.improc.cli_depth_viz_batch --manifest /abs/scene_root/manifest.csv --scene-root /abs/scene_root
+  python -m src.improc.cli_depth_viz_batch --config /abs/path/scene.toml
 """
 
 from __future__ import annotations
@@ -9,31 +9,30 @@ import argparse
 import csv
 from pathlib import Path
 
+from src.config.config_parser import load_scene_cfg
 from src.improc.depth_noise import clamp_depth_to_zmax, read_exr_depth
 from src.improc.depth_viz import visualize_exr_to_png
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--manifest', required=True, help='Path to manifest.csv')
-    ap.add_argument(
-        '--scene-root',
-        required=True,
-        help='Absolute path to scene root (joins relative paths in manifest)',
-    )
+    ap.add_argument('--config', required=True, help='Path to scene .toml')
     args = ap.parse_args()
 
-    scene_root = Path(args.scene_root).resolve()
-    man_path = Path(args.manifest).resolve()
-    if not man_path.exists():
-        raise FileNotFoundError(f'manifest not found: {man_path}')
+    cfg = load_scene_cfg(args.config)
+    print(f'[VIZ] loaded config: {args.config}')
 
-    with man_path.open(newline='') as f:
+    zmax = float(getattr(cfg.render, 'zmax_m', 0.0) or 0.0)
+
+    scene_root = (Path(cfg.render.out_dir) / cfg.render.scene_id).resolve()
+    manifest = scene_root / 'manifest.csv'
+    if not manifest.exists():
+        raise FileNotFoundError(f'manifest not found: {manifest}')
+
+    with manifest.open(newline='') as f:
         rows = list(csv.DictReader(f))
 
     for r in rows:
-        zmax = float(r['zmax'])
-
         # Groundtruth
         exr_gt_rel = r.get('depth_exr_gt')
         viz_gt_rel = r.get('depth_viz_gt')

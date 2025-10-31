@@ -25,11 +25,13 @@ def main():
     args = ap.parse_args()
 
     cfg = load_scene_cfg(args.config)
+    print(f'[NOISE] loaded config: {args.config}')
     if not cfg.noise.enabled:
         print('[NOISE] noise.enabled = false → skip')
         return
 
-    # scene root & manifest
+    zmax = float(getattr(cfg.render, 'zmax_m', 0.0) or 0.0)
+
     scene_root = (Path(cfg.render.out_dir) / cfg.render.scene_id).resolve()
     manifest = scene_root / 'manifest.csv'
     if not manifest.exists():
@@ -51,6 +53,10 @@ def main():
     if ncfg.dropout.enabled and ncfg.dropout.p > 0:
         noises.append(DropoutDepthNoise(ncfg.dropout.p, ncfg.dropout.fill))
 
+    print(
+        f'[NOISE] enabled={cfg.noise.enabled} | chain={[type(n).__name__ for n in noises]}'
+    )
+
     for r in rows:
         exr_gt_rel = r.get('depth_exr_gt')
         exr_noisy_rel = r.get('depth_exr_noisy')
@@ -64,7 +70,6 @@ def main():
         exr_noisy_abs = (scene_root / exr_noisy_rel).resolve()
         viz_noisy_abs = (scene_root / viz_noisy_rel).resolve()
         viz_gt_abs = (scene_root / viz_gt_rel).resolve()
-        zmax = float(r.get('zmax', cfg.render.zmax_m or 0.0))
 
         d_gt = read_exr_depth(str(exr_gt_abs))
         if zmax > 0.0:
@@ -73,6 +78,15 @@ def main():
 
         # apply noise on clamped GT
         d_noisy = apply_noise_chain(d_gt, noises, zmax_m=zmax, nonpositive_to_zero=True)
+
+        import numpy as np
+
+        # Before/after clamp stats (apply_noise_chain already clamps; adjust if you clamp separately)
+        diff = np.abs(d_noisy - d_gt)
+        print(
+            f'[DEBUG] diff(mean)={float(diff.mean()):.6e} diff(max)={float(diff.max()):.6e}'
+        )
+
         # Symmetric clamp after noise as well
         if zmax > 0.0:
             d_noisy = clamp_depth_to_zmax(d_noisy, zmax)

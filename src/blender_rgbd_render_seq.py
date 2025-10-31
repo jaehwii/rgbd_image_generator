@@ -253,10 +253,8 @@ def main():
         sys_py,
         '-m',
         'src.improc.cli_depth_viz_batch',
-        '--manifest',
-        str(manifest_path),
-        '--scene-root',
-        str(scene_root),
+        '--config',
+        str(config_path),
     ]
     print(
         f'[INFO] Depth viz (prefer noisy):\n  {" ".join(shlex.quote(c) for c in viz_cmd)}'
