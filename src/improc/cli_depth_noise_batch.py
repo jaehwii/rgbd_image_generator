@@ -12,6 +12,7 @@ from src.improc.depth_noise import (
     MultiplicativeDepthNoise,
     QuantizationDepthNoise,
     apply_noise_chain,
+    clamp_depth_to_zmax,
     read_exr_depth,
     write_exr_depth,
 )
@@ -65,9 +66,16 @@ def main():
         viz_gt_abs = (scene_root / viz_gt_rel).resolve()
         zmax = float(r.get('zmax', cfg.render.zmax_m or 0.0))
 
-        # read GT, apply noise, clamp
         d_gt = read_exr_depth(str(exr_gt_abs))
+        if zmax > 0.0:
+            d_gt = clamp_depth_to_zmax(d_gt, zmax)
+            write_exr_depth(str(exr_gt_abs), d_gt)
+
+        # apply noise on clamped GT
         d_noisy = apply_noise_chain(d_gt, noises, zmax_m=zmax, nonpositive_to_zero=True)
+        # Symmetric clamp after noise as well
+        if zmax > 0.0:
+            d_noisy = clamp_depth_to_zmax(d_noisy, zmax)
 
         # write noisy exr
         write_exr_depth(str(exr_noisy_abs), d_noisy)

@@ -9,7 +9,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from src.improc.depth_noise import read_exr_depth
+from src.improc.depth_noise import clamp_depth_to_zmax, read_exr_depth
 from src.improc.depth_viz import visualize_exr_to_png
 
 
@@ -42,7 +42,10 @@ def main():
         exr_gt_abs = (scene_root / exr_gt_rel).resolve()
         viz_gt_abs = (scene_root / viz_gt_rel).resolve()
         print(f'[POST] GT EXR -> PNG16 | {exr_gt_abs} -> {viz_gt_abs} | zmax={zmax}')
+
         depth_gt = read_exr_depth(str(exr_gt_abs))
+        if zmax > 0.0:
+            depth_gt = clamp_depth_to_zmax(depth_gt, zmax)
         visualize_exr_to_png(depth_gt, str(viz_gt_abs), zmax)
 
         # Noisy
@@ -58,6 +61,8 @@ def main():
             f'[POST] NOISY EXR -> PNG16 | {exr_noisy_abs} -> {viz_noisy_abs} | zmax={zmax}'
         )
         depth_noisy = read_exr_depth(str(exr_noisy_abs))
+        if zmax > 0.0:
+            depth_noisy = clamp_depth_to_zmax(depth_noisy, zmax)
         visualize_exr_to_png(depth_noisy, str(viz_noisy_abs), zmax)
 
 

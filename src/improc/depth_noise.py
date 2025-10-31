@@ -112,3 +112,24 @@ def apply_noise_chain(
     if zmax_m is not None and zmax_m > 0:
         x = np.where(x <= zmax_m, x, 0.0).astype(np.float32)
     return x
+
+
+# -----------------------------
+# Depth clamping utility
+# -----------------------------
+def clamp_depth_to_zmax(
+    depth_m: np.ndarray,
+    zmax_m: float,
+    nonpositive_to_zero: bool = True,
+) -> np.ndarray:
+    """Clamp depth to [0, zmax]; set values beyond zmax to 0 (simulate no return).
+    Non-finite or non-positive values become 0 if nonpositive_to_zero is True.
+    """
+    x = depth_m.astype(np.float32)
+    if nonpositive_to_zero:
+        x = np.where(np.isfinite(x) & (x > 0.0), x, 0.0).astype(np.float32)
+    else:
+        x = np.where(np.isfinite(x), x, 0.0).astype(np.float32)
+    if zmax_m is not None and zmax_m > 0:
+        x = np.where(x <= zmax_m, x, 0.0).astype(np.float32)
+    return x
