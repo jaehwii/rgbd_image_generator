@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict, Iterable, Tuple
 
+# Try stdlib tomllib (Py>=3.11), otherwise fall back to 'tomli' backport.
 try:
     import tomllib  # Python 3.11+
 except Exception:  # pragma: no cover
-    tomllib = None  # type: ignore
+    try:
+        import tomli as tomllib  # type: ignore
+    except Exception:
+        tomllib = None  # type: ignore
 
 from src.config.config_types import (
     SE3,
@@ -205,7 +209,8 @@ def load_scene_cfg(toml_path: str | None = None, *, use_toml: bool = True) -> Sc
         raise ValueError('toml_path is required when use_toml=True')
     if tomllib is None:
         raise RuntimeError(
-            'tomllib not available; use Python 3.11+ or set use_toml=False.'
+            'TOML parser not available. Install backport via '
+            '`pip install tomli` on Python < 3.11.'
         )
 
     with open(toml_path, 'rb') as f:
