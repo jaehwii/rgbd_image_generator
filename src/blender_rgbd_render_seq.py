@@ -229,6 +229,8 @@ def main():
         else f'{PROJECT_ROOT}:{env["PYTHONPATH"]}'
     )
     cwd = PROJECT_ROOT  # Execute from the project root
+    # Make child Python print() unbuffered so logs show up immediately
+    env['PYTHONUNBUFFERED'] = '1'
 
     noise_cmd = [
         sys_py,
@@ -240,13 +242,12 @@ def main():
     print(
         f'[INFO] Depth noise (system Python):\n  {" ".join(shlex.quote(c) for c in noise_cmd)}'
     )
-    res = subprocess.run(noise_cmd, env=env, cwd=cwd, capture_output=True, text=True)
-    if res.returncode != 0:
-        print('[ERR] noise stderr:\n' + (res.stderr or '(empty)'))
-        print('[ERR] noise stdout:\n' + (res.stdout or '(empty)'))
-        print('[WARN] noise postprocess failed; you can run it manually later.')
-    else:
+    try:
+        # Inherit parent's stdout/stderr so child logs stream to terminal
+        subprocess.run(noise_cmd, env=env, cwd=cwd, check=True)
         print('[OK ] noise done.')
+    except subprocess.CalledProcessError:
+        print('[ERR] noise postprocess failed; you can run it manually later.')
 
     viz_cmd = [
         sys_py,
@@ -260,13 +261,11 @@ def main():
     print(
         f'[INFO] Depth viz (prefer noisy):\n  {" ".join(shlex.quote(c) for c in viz_cmd)}'
     )
-    res = subprocess.run(viz_cmd, env=env, cwd=cwd, capture_output=True, text=True)
-    if res.returncode != 0:
-        print('[ERR] viz stderr:\n' + (res.stderr or '(empty)'))
-        print('[ERR] viz stdout:\n' + (res.stdout or '(empty)'))
-        print('[WARN] depth_viz postprocess failed; you can run it manually later.')
-    else:
+    try:
+        subprocess.run(viz_cmd, env=env, cwd=cwd, check=True)
         print('[OK ] viz done.')
+    except subprocess.CalledProcessError:
+        print('[ERR] depth_viz postprocess failed; you can run it manually later.')
 
 
 if __name__ == '__main__':
