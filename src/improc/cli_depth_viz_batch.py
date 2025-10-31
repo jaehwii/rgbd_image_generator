@@ -10,8 +10,9 @@ import csv
 from pathlib import Path
 
 from src.config.config_parser import load_config
-from src.improc.depth_noise import clamp_depth_to_zmax, read_exr_depth
+from src.improc.depth_noise import clamp_depth_to_zmax
 from src.improc.depth_viz import visualize_exr_to_png
+from src.improc.read_write_exr import read_exr_depth
 
 
 def main():
