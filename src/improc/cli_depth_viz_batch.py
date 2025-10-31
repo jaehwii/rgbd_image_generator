@@ -45,7 +45,7 @@ def main():
         depth_gt = read_exr_depth(str(exr_gt_abs))
         if zmax > 0.0:
             depth_gt = clamp_depth_to_zmax(depth_gt, zmax)
-        visualize_exr_to_png(depth_gt, str(viz_gt_abs), zmax)
+        visualize_exr_to_png(depth_gt, str(viz_gt_abs), zmax, invalid_color=(0, 180, 0))
 
         # Noisy
         exr_noisy_rel = r.get('depth_exr_noisy')
@@ -62,7 +62,9 @@ def main():
         depth_noisy = read_exr_depth(str(exr_noisy_abs))
         if zmax > 0.0:
             depth_noisy = clamp_depth_to_zmax(depth_noisy, zmax)
-        visualize_exr_to_png(depth_noisy, str(viz_noisy_abs), zmax)
+        visualize_exr_to_png(
+            depth_noisy, str(viz_noisy_abs), zmax, invalid_color=(0, 180, 0)
+        )
 
 
 if __name__ == '__main__':
